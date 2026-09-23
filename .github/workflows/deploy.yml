@@ -7,6 +7,10 @@ on:
       - "environments/**"
       - "modules/**"
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest

@@ -6,6 +6,11 @@ on:
       - "environments/**"
       - "modules/**"
 
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write # necesario para que terraform-plan.yml comente el plan en el PR
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
