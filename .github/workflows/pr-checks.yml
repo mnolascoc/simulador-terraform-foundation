@@ -10,74 +10,35 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      nonprod_foundation: ${{ steps.filter.outputs.nonprod_foundation }}
-      nonprod_dev: ${{ steps.filter.outputs.nonprod_dev }}
-      nonprod_staging: ${{ steps.filter.outputs.nonprod_staging }}
-      prod_foundation: ${{ steps.filter.outputs.prod_foundation }}
-      prod_app: ${{ steps.filter.outputs.prod_app }}
+      nonprod: ${{ steps.filter.outputs.nonprod }}
+      prod: ${{ steps.filter.outputs.prod }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            nonprod_foundation:
-              - 'environments/nonprod/foundation/**'
-              - 'modules/foundation/**'
-            nonprod_dev:
-              - 'environments/nonprod/dev/**'
-              - 'modules/app/**'
-            nonprod_staging:
-              - 'environments/nonprod/staging/**'
-              - 'modules/app/**'
-            prod_foundation:
-              - 'environments/prod/foundation/**'
-              - 'modules/foundation/**'
-            prod_app:
-              - 'environments/prod/prod/**'
-              - 'modules/app/**'
+            nonprod:
+              - 'environments/nonprod/**'
+              - 'modules/**'
+            prod:
+              - 'environments/prod/**'
+              - 'modules/**'
 
-  plan-nonprod-foundation:
+  plan-nonprod:
     needs: detect-changes
-    if: needs.detect-changes.outputs.nonprod_foundation == 'true'
+    if: needs.detect-changes.outputs.nonprod == 'true'
     uses: ./.github/workflows/terraform-plan.yml
     with:
-      working_directory: environments/nonprod/foundation
+      working_directory: environments/nonprod
     secrets:
       role_arn: ${{ secrets.NONPROD_TERRAFORM_ROLE_ARN }}
 
-  plan-nonprod-dev:
+  plan-prod:
     needs: detect-changes
-    if: needs.detect-changes.outputs.nonprod_dev == 'true'
+    if: needs.detect-changes.outputs.prod == 'true'
     uses: ./.github/workflows/terraform-plan.yml
     with:
-      working_directory: environments/nonprod/dev
-    secrets:
-      role_arn: ${{ secrets.NONPROD_TERRAFORM_ROLE_ARN }}
-
-  plan-nonprod-staging:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.nonprod_staging == 'true'
-    uses: ./.github/workflows/terraform-plan.yml
-    with:
-      working_directory: environments/nonprod/staging
-    secrets:
-      role_arn: ${{ secrets.NONPROD_TERRAFORM_ROLE_ARN }}
-
-  plan-prod-foundation:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.prod_foundation == 'true'
-    uses: ./.github/workflows/terraform-plan.yml
-    with:
-      working_directory: environments/prod/foundation
-    secrets:
-      role_arn: ${{ secrets.PROD_TERRAFORM_ROLE_ARN }}
-
-  plan-prod-app:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.prod_app == 'true'
-    uses: ./.github/workflows/terraform-plan.yml
-    with:
-      working_directory: environments/prod/prod
+      working_directory: environments/prod
     secrets:
       role_arn: ${{ secrets.PROD_TERRAFORM_ROLE_ARN }}

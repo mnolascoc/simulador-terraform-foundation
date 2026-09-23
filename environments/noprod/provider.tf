@@ -10,7 +10,7 @@ provider "aws" {
       Project     = "simulador"
       Environment = "nonprod"
       ManagedBy   = "terraform"
-      Repository  = "simulador-foundation"
+      Repository  = "simulador-terraform-foundation"
     }
   }
 }
