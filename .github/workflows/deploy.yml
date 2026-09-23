@@ -6,6 +6,7 @@ on:
     paths:
       - "environments/**"
       - "modules/**"
+  workflow_dispatch: # permite disparar manualmente desde la pestaña Actions, sin depender de un push que matchee paths
 
 permissions:
   id-token: write
@@ -32,7 +33,7 @@ jobs:
 
   apply-nonprod:
     needs: detect-changes
-    if: needs.detect-changes.outputs.nonprod == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.nonprod == 'true'
     uses: ./.github/workflows/terraform-apply.yml
     with:
       working_directory: environments/nonprod
@@ -42,7 +43,7 @@ jobs:
 
   apply-prod:
     needs: detect-changes
-    if: needs.detect-changes.outputs.prod == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.prod == 'true'
     uses: ./.github/workflows/terraform-apply.yml
     with:
       working_directory: environments/prod
