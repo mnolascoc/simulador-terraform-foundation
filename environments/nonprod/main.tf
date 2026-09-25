@@ -8,33 +8,27 @@ module "vpc" {
   environment          = "nonprod"
 }
 
-# module "vpc_endpoints" {
-#   source = "../../modules/vpc-endpoints"
-#
-#   aws_region              = var.aws_region
-#   vpc_id                  = module.vpc.vpc_id
-#   private_route_table_ids = module.vpc.private_route_table_ids
-#   environment             = "nonprod"
-#
-#   # Deshabilitado: las tasks de ECS corren en subnet pública
-#   # (assign_public_ip) y salen directo por el IGW. El módulo solo crea
-#   # Gateway endpoints (S3, DynamoDB) — no hay Interface endpoints (se
-#   # eliminaron del módulo al no usarse subnet privada). Reactivar si en
-#   # el futuro algo en subnet privada necesita hablar con S3/DynamoDB sin
-#   # pasar por NAT.
-# }
+module "vpc_endpoints" {
+  source = "../../modules/vpc-endpoints"
 
-module "ecs_cluster" {
-  source = "../../modules/ecs-cluster"
-
-  vpc_id       = module.vpc.vpc_id
-  cluster_name = "simulator-nonprod" # compartido entre dev y uat
-  environment  = "nonprod"
+  aws_region              = var.aws_region
+  vpc_id                  = module.vpc.vpc_id
+  private_route_table_ids = module.vpc.private_route_table_ids
+  environment             = "nonprod"
 }
 
 # Bucket de artifacts Lambda (compartido dev/uat)
 resource "aws_s3_bucket" "lambda_artifacts" {
   bucket = "simulator-lambda-artifacts-mnc"
+
+  # prevent_destroy: este bucket es consumido por otro proyecto de Terraform
+  # (el de Lambdas/API Gateway) vía data source / remote state — un
+  # `terraform destroy` accidental acá no debe poder borrarlo. Nota: esto
+  # solo bloquea el destroy hecho por Terraform, no un borrado manual desde
+  # la consola de AWS ni la CLI/SDK.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_versioning" "lambda_artifacts" {

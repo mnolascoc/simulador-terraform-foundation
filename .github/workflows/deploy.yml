@@ -6,7 +6,17 @@ on:
     paths:
       - "environments/**"
       - "modules/**"
-  workflow_dispatch: # permite disparar manualmente desde la pestaña Actions, sin depender de un push que matchee paths
+  workflow_dispatch: # permite disparar manualmente desde la pestaña Actions, eligiendo el ambiente
+    inputs:
+      environment:
+        description: "Ambiente a desplegar"
+        required: true
+        type: choice
+        default: nonprod
+        options:
+          - nonprod
+          - prod
+          - all
 
 permissions:
   id-token: write
@@ -33,7 +43,9 @@ jobs:
 
   apply-nonprod:
     needs: detect-changes
-    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.nonprod == 'true'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && contains(fromJSON('["nonprod", "all"]'), inputs.environment)) ||
+      (github.event_name == 'push' && needs.detect-changes.outputs.nonprod == 'true')
     uses: ./.github/workflows/terraform-apply.yml
     with:
       working_directory: environments/nonprod
@@ -43,7 +55,9 @@ jobs:
 
   apply-prod:
     needs: detect-changes
-    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.prod == 'true'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && contains(fromJSON('["prod", "all"]'), inputs.environment)) ||
+      (github.event_name == 'push' && needs.detect-changes.outputs.prod == 'true')
     uses: ./.github/workflows/terraform-apply.yml
     with:
       working_directory: environments/prod
