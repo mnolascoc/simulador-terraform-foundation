@@ -6,12 +6,12 @@ Infraestructura como código (Terraform) para la base de cuenta AWS del proyecto
 
 | Ambiente | Estado | Cuenta AWS | Uso |
 |---|---|---|---|
-| `environments/noprod` | Implementado | Non-Prod (compartida) | dev + uat, mismo cluster ECS y mismo bucket de artifacts |
+| `environments/nonprod` | Implementado | Non-Prod (compartida) | dev + uat, mismo cluster ECS y mismo bucket de artifacts |
 | `environments/prod` | Pendiente | Prod | Aún no creado |
 
 Cada ambiente asume un rol IAM (`terraform-deploy`) vía OIDC — pensado para ejecutarse desde GitHub Actions, sin credenciales estáticas. El state se guarda en S3 (`simulator-terraform-deploy-mnc`) con locking en DynamoDB (`terraform_locks_nonprod`).
 
-## Recursos que se habilitan (`noprod`)
+## Recursos que se habilitan (`nonprod`)
 
 ### Red — módulo `modules/vpc`
 
@@ -28,14 +28,9 @@ Cada ambiente asume un rol IAM (`terraform-deploy`) vía OIDC — pensado para e
 
 ### VPC Endpoints — módulo `modules/vpc-endpoints` (creado, **actualmente deshabilitado**)
 
-El módulo existe pero su invocación está comentada en `environments/noprod/main.tf`. Motivo: las tasks de ECS corren en subnet pública y salen directo por el IGW, así que hoy no hace falta pagar por Interface Endpoints (`ecr.api`, `ecr.dkr`, `textract`) que no aportarían nada sobre ese camino gratuito.
+El módulo solo crea Gateway endpoints (S3, DynamoDB) — sin costo por hora ni por GB, sin trade-off. Los Interface endpoints (ECR, Textract, etc.) se eliminaron del módulo: al correr la ECS task en subnet pública con salida directa por el IGW, no aportarían nada sobre ese camino ya gratuito, y sí tendrían costo fijo por hora + por GB.
 
-Si en el futuro las tasks se mueven a subnet privada (más aislamiento, típico al escalar más allá de la etapa inicial de startup), descomentar el módulo y pasar:
-```hcl
-interface_endpoint_services = ["ecr.api", "ecr.dkr", "textract"]
-```
-- **Gateway endpoints (S3, DynamoDB):** sin costo por hora ni por GB — se crean siempre que el módulo esté activo, sin trade-off.
-- **Interface endpoints:** tienen costo por hora + por GB procesado (similar a un NAT pequeño) — por eso son opt-in vía `interface_endpoint_services`, solo se agregan cuando se identifica una necesidad concreta.
+Su invocación está comentada en `environments/nonprod/main.tf`. Reactivar solo si en el futuro algún recurso en subnet privada necesita hablar con S3/DynamoDB sin pasar por NAT.
 
 ### ECS — módulo `modules/ecs-cluster`
 
@@ -47,7 +42,7 @@ interface_endpoint_services = ["ecr.api", "ecr.dkr", "textract"]
 
 **Buena práctica aplicada:** el SG sigue el principio de mínimo privilegio en la dirección que importa — cero ingress porque no hay ningún flujo legítimo que lo necesite. Egress amplio es una concesión consciente (no hay endpoints privados activos hoy); si se restringe más adelante, podría acotarse a los rangos de IP de los servicios AWS usados.
 
-### Almacenamiento — `environments/noprod/main.tf` (recursos sueltos, no modularizados)
+### Almacenamiento — `environments/nonprod/main.tf` (recursos sueltos, no modularizados)
 
 | Recurso | Descripción |
 |---|---|
@@ -57,7 +52,7 @@ interface_endpoint_services = ["ecr.api", "ecr.dkr", "textract"]
 
 ## Puntos importantes / decisiones de diseño
 
-- **ECS task con IP pública, sin ALB de por medio.** Al no haber NAT Gateway ni Interface Endpoints activos, las tasks necesitan `assign_public_ip = true` en su `network_configuration` para poder llamar a ECR/Textract/S3 vía el IGW. Esto expone la ENI de la task con una IP pública, pero **no representa un riesgo de acceso entrante** mientras el SG (`aws_security_group.tasks`) no tenga reglas de ingress: nadie puede iniciar una conexión hacia el container desde internet, solo la task puede iniciar conexiones salientes. El único canal de invocación es la API de ECS (`RunTask`) desde la Lambda, autorizado por IAM — no por red.
+- **ECS task con IP pública, sin ALB de por medio.** Al no haber NAT Gateway ni Interface Endpoints (removidos del módulo), las tasks necesitan `assign_public_ip = true` en su `network_configuration` para poder llamar a ECR/Textract/S3 vía el IGW. Esto expone la ENI de la task con una IP pública, pero **no representa un riesgo de acceso entrante** mientras el SG (`aws_security_group.tasks`) no tenga reglas de ingress: nadie puede iniciar una conexión hacia el container desde internet, solo la task puede iniciar conexiones salientes. El único canal de invocación es la API de ECS (`RunTask`) desde la Lambda, autorizado por IAM — no por red.
   - Si en algún momento la task pasa a exponer un puerto (por ejemplo, para health checks o una API interna), **revisar esta decisión**: en ese caso sí conviene subnet privada + NAT/VPC endpoints, o un ALB delante, para no depender de "SG sin ingress" como única barrera.
 - **Sin NAT Gateway.** Decisión de costo para etapa temprana de startup: un NAT Gateway cuesta ~$32-38/mes fijos + procesamiento por GB, por AZ. Al día de hoy nada en subnet privada necesita salir a internet, así que no se justifica.
 - **Cluster y bucket de artifacts compartidos entre dev y uat** dentro de la cuenta non-prod, para reducir superficie de recursos a mantener y costo — aceptable porque son ambientes de bajo tráfico y no productivos. Prod, cuando se implemente, va en cuenta separada (aislamiento total de datos/red respecto a non-prod).
@@ -68,7 +63,7 @@ interface_endpoint_services = ["ecr.api", "ecr.dkr", "textract"]
 ## Comandos
 
 ```bash
-cd environments/noprod
+cd environments/nonprod
 terraform init
 terraform validate
 terraform plan

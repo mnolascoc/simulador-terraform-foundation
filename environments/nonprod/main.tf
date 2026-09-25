@@ -10,19 +10,18 @@ module "vpc" {
 
 # module "vpc_endpoints" {
 #   source = "../../modules/vpc-endpoints"
-
+#
 #   aws_region              = var.aws_region
 #   vpc_id                  = module.vpc.vpc_id
-#   vpc_cidr                = var.vpc_cidr
-#   private_subnet_ids      = module.vpc.private_subnet_ids
 #   private_route_table_ids = module.vpc.private_route_table_ids
 #   environment             = "nonprod"
-
-#   # Sin interface endpoints por ahora: las tasks de ECS corren en subnet
-#   # pública (assign_public_ip) y salen directo por el IGW, así que ECR y
-#   # Textract no necesitan endpoint (evita el costo fijo por hora + GB de
-#   # cada Interface endpoint). Si en el futuro las tasks pasan a subnet
-#   # privada, agregar aquí interface_endpoint_services = ["ecr.api", "ecr.dkr", "textract"].
+#
+#   # Deshabilitado: las tasks de ECS corren en subnet pública
+#   # (assign_public_ip) y salen directo por el IGW. El módulo solo crea
+#   # Gateway endpoints (S3, DynamoDB) — no hay Interface endpoints (se
+#   # eliminaron del módulo al no usarse subnet privada). Reactivar si en
+#   # el futuro algo en subnet privada necesita hablar con S3/DynamoDB sin
+#   # pasar por NAT.
 # }
 
 module "ecs_cluster" {

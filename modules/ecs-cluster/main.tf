@@ -38,7 +38,7 @@ resource "aws_ecs_cluster_capacity_providers" "this" {
 # ingress: solo egress para que puedan llamar a ECR, Textract, S3, etc.
 resource "aws_security_group" "tasks" {
   name        = "${var.cluster_name}-tasks-sg"
-  description = "SG para tasks ECS del cluster ${var.cluster_name}: sin ingress (se invocan vía RunTask, no por red), egress abierto para dependencias externas (ECR, Textract, S3, etc.)"
+  description = "SG para tasks ECS del cluster ${var.cluster_name}: sin ingress (se invocan via RunTask, no por red), egress abierto para dependencias externas (ECR, Textract, S3, etc.)"
   vpc_id      = var.vpc_id
 
   egress {
